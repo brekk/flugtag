@@ -1,0 +1,26 @@
+import IO from "IO"
+import String from "String"
+
+import CopyEdit from "CopyEdit"
+
+import { Tag, isSibling, overlap, render } from "@/FlugTag"
+
+
+
+main = () => {
+  smork = Tag(["smork", "flugtag", "config"])
+  name = Tag(["flugtag", "config", "common", "name"])
+  pipe(
+    isSibling(smork),
+    IO.pTrace("siblings"),
+  )(name)
+
+  pipe(
+    overlap(smork),
+    IO.pTrace("overlap"),
+    String.join(":"),
+    IO.pTrace("joint"),
+    CopyEdit.distance(render(smork)),
+    IO.pTrace("distance"),
+  )(name)
+}

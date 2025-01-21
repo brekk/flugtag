@@ -1,0 +1,191 @@
+import type { Comparison } from "Compare"
+import type { Maybe } from "Maybe"
+
+import { EQ, GT, LT } from "Compare"
+import IO from "IO"
+import List from "List"
+import { Just, Nothing, fromMaybe } from "Maybe"
+import { join, toLower } from "String"
+
+
+
+/*
+
+  Tags are non-empty caseless string lists: Tag(["shop", "bakery", "Tartine"])
+  
+  Each index is a Scope
+
+  The first Scope is the Root Scope
+  The last Scope is the Focus Scope
+
+  A Band is a Tag whose Root and Focus are the same value (that is, a single value Tag is a Band)
+
+  Other tags are considered siblings if the given tags share a Root Scope
+
+  The overlap between Tags denotes their affinity
+
+  a. Tag(["shop", "bakery", "Tartine"])
+  b. Tag(["shop", "exotic", "Paxton Gate"])
+
+  These two tags have the same Band, "shop", and it's in the same place, so they have a stronger affinity than
+
+  c: Tag(["airport", "shop", "Peetz", "Drip Coffee"])
+
+  since `a` and `b` have the same Root and length, they have the same affinity to `c`
+
+  A tag's scopes are considered left associative and should loosely allow for "is a" expansion from right to left, that is, for `a` above, "Tartine is a bakery is a shop" is true
+
+*/
+
+lower = map(toLower)
+
+export type Tag = Tag(List String) | UnTag(List String) | AnyTag | NoTag
+instance Comparable Tag {
+  compare = compareTag
+}
+
+export create = Tag
+export negate = UnTag
+export any = AnyTag
+export none = NoTag
+
+// INTRINSICS
+
+compareTag :: Tag -> Tag -> Comparison
+export compareTag = (a, b) => where(#[a, b]) {
+  #[Tag(x), Tag(y)] =>
+    EQ
+
+  #[UnTag(x), UnTag(y)] =>
+    EQ
+
+  #[UnTag(x), Tag(y)] =>
+    EQ
+
+  #[Tag(x), UnTag(y)] =>
+    EQ
+
+  #[AnyTag, _] =>
+    GT
+
+  #[_, AnyTag] =>
+    GT
+
+  #[NoTag, _] =>
+    LT
+
+  #[_, NoTag] =>
+    LT
+}
+
+
+isAny :: Tag -> Boolean
+export isAny = where {
+  AnyTag =>
+    true
+
+  _ =>
+    false
+}
+
+// FIELDS
+
+scopes :: Tag -> Maybe (List String)
+export scopes = where {
+  UnTag(x) =>
+    Just(x)
+
+  Tag(x) =>
+    Just(x)
+
+  _ =>
+    Nothing
+}
+
+render :: Tag -> String
+export render = pipe(
+  scopes,
+  fromMaybe([]),
+  join(":"),
+)
+
+length :: Tag -> Integer
+export length = where {
+  Tag(x) =>
+    List.length(x)
+
+  UnTag(x) =>
+    List.length(x)
+
+  NoTag =>
+    0
+
+  AnyTag =>
+    -1
+}
+
+safeScopeCall :: (List String -> Maybe a) -> Tag -> Maybe a
+export safeScopeCall = (fn, t) => pipe(
+  scopes,
+  chain(fn),
+)(t)
+
+root :: Tag -> Maybe String
+export root = safeScopeCall(List.first)
+
+focus :: Tag -> Maybe String
+export focus = safeScopeCall(List.last)
+
+scopeAt :: Integer -> Tag -> Maybe String
+export scopeAt = (i, t) => safeScopeCall(List.nth(i), t)
+
+// DERIVATIONS
+
+isBand :: Tag -> Boolean
+export isBand = where {
+  Tag(x) =>
+    List.length(x) == 1
+
+  _ =>
+    false
+}
+
+isRootSibling :: Tag -> Tag -> Boolean
+export isRootSibling = (a, b) => root(a) == root(b)
+
+isSibling :: Tag -> Tag -> Boolean
+export isSibling = (_a, _b) => where(#[_a, _b]) {
+  #[Tag(a), Tag(b)] =>
+    pipe(
+      List.zip(a),
+      List.all(where { #[k, v] => k == v }),
+    )(b)
+
+  #[AnyTag, _] =>
+    true
+
+  #[_, AnyTag] =>
+    true
+
+  _ =>
+    false
+}
+
+overlap :: Tag -> Tag -> List String
+export overlap = (a, b) => where(#[a, b]) {
+  #[Tag(xs), Tag(ys)] =>
+    List.reduce(
+      (agg, y) => List.includes(toLower(y), lower(xs)) ? List.concat(agg, [y]) : agg,
+      [],
+      lower(ys),
+    )
+
+  #[AnyTag, Tag(xs)] =>
+    xs
+
+  #[Tag(xs), AnyTag] =>
+    xs
+
+  _ =>
+    []
+}
