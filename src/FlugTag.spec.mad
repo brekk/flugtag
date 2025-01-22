@@ -1,0 +1,31 @@
+import { report } from "Study"
+
+import {
+  any,
+  compareTag,
+  create,
+  focus,
+  isAny,
+  isBand,
+  isRootSibling,
+  isSibling,
+  length,
+  negate,
+  none,
+  overlap,
+  render,
+  root,
+  safeScopeCall,
+  scopeAt,
+  scopes,
+} from "@/FlugTag"
+
+
+
+report(create, "create", [#[["skibidi"], create(["skibidi"])]])
+report(negate, "negate", [#[["unskibi"], negate(["unskibi"])]])
+report(
+  isSibling(create(["a", "b", "c"])),
+  "isSibling",
+  [#[create(["a", "b", "c", "d"]), true], #[create(["a"]), true], #[any, true], #[none, false]],
+)
