@@ -1,16 +1,20 @@
-import { report } from "Study"
+import { EQ, GT, LT } from "Compare"
+import { Just, Nothing } from "Maybe"
+import { assertEquals, test } from "Test"
+
+import { caseN2, report } from "Study"
 
 import {
+  affinity,
   any,
   compareTag,
   create,
   focus,
   isAny,
   isBand,
+  isRelative,
   isRootSibling,
-  isSibling,
   length,
-  negate,
   none,
   overlap,
   render,
@@ -22,10 +26,126 @@ import {
 
 
 
-report(create, "create", [#[["skibidi"], create(["skibidi"])]])
-report(negate, "negate", [#[["unskibi"], negate(["unskibi"])]])
+HARNESS = {
+  a: create(["a"]),
+  abc: create(["a", "b", "c"]),
+  abcd: create(["a", "b", "c", "d"]),
+  skibidi: create(["skibidi"]),
+  cdef: create(["c", "d", "e", "f"]),
+}
+
+
+report(create, "create", [#[["skibidi"], HARNESS.skibidi]])
 report(
-  isSibling(create(["a", "b", "c"])),
-  "isSibling",
-  [#[create(["a", "b", "c", "d"]), true], #[create(["a"]), true], #[any, true], #[none, false]],
+  caseN2(isRelative),
+  "isRelative",
+  [
+    #[#[HARNESS.abc, HARNESS.abcd], true],
+    #[#[HARNESS.abc, HARNESS.a], true],
+    #[#[HARNESS.abc, any], true],
+    #[#[any, HARNESS.abc], true],
+    #[#[HARNESS.abc, none], false],
+  ],
+)
+
+report(
+  caseN2(isRootSibling),
+  "isRootSibling",
+  [
+    #[#[HARNESS.abc, HARNESS.abcd], true],
+    #[#[HARNESS.abc, HARNESS.a], true],
+    #[#[HARNESS.abc, any], false],
+    #[#[any, HARNESS.abc], false],
+    #[#[HARNESS.abc, none], false],
+  ],
+)
+
+report(length, "length", [#[HARNESS.abcd, 4], #[HARNESS.a, 1], #[any, -1], #[none, 0]])
+
+report(
+  isBand,
+  "isBand",
+  [#[HARNESS.a, true], #[HARNESS.abcd, false], #[any, false], #[none, false]],
+)
+
+report(scopeAt(2), "scopeAt", [#[HARNESS.abcd, Just("c")]])
+
+report(
+  scopes,
+  "scopes",
+  [
+    #[HARNESS.abcd, Just(["a", "b", "c", "d"])],
+    #[HARNESS.abc, Just(["a", "b", "c"])],
+    #[any, Nothing],
+    #[none, Nothing],
+  ],
+)
+
+report(render, "render", [#[HARNESS.abcd, "a:b:c:d"], #[HARNESS.a, "a"], #[any, "*"], #[none, "/"]])
+
+report(
+  root,
+  "root",
+  [#[HARNESS.abcd, Just("a")], #[HARNESS.a, Just("a")], #[any, Nothing], #[none, Nothing]],
+)
+
+report(
+  focus,
+  "focus",
+  [#[HARNESS.abcd, Just("d")], #[HARNESS.a, Just("a")], #[any, Nothing], #[none, Nothing]],
+)
+
+report(
+  caseN2(overlap),
+  "overlap",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], ["a"]],
+    #[#[HARNESS.abcd, HARNESS.abc], ["a", "b", "c"]],
+    #[#[HARNESS.a, HARNESS.skibidi], []],
+    #[#[none, none], []],
+    #[#[any, HARNESS.abcd], ["a", "b", "c", "d"]],
+    #[#[HARNESS.abcd, any], ["a", "b", "c", "d"]],
+  ],
+)
+
+report(
+  caseN2(affinity),
+  "affinity - let's test some stuff and see what makes sense",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], 0.25],
+    #[#[HARNESS.a, HARNESS.abcd], 0.25],
+    #[#[HARNESS.skibidi, HARNESS.abcd], 0],
+    #[#[HARNESS.skibidi, HARNESS.skibidi], 1],
+    #[#[HARNESS.cdef, HARNESS.abcd], 0.5],
+  ],
+)
+
+report(
+  caseN2(compareTag),
+  "compareTag",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], LT],
+    #[#[HARNESS.a, HARNESS.abcd], LT],
+    #[#[HARNESS.abcd, HARNESS.abcd], EQ],
+    #[#[HARNESS.abc, HARNESS.abcd], EQ],
+    #[#[HARNESS.abcd, HARNESS.abc], EQ],
+    #[#[HARNESS.skibidi, HARNESS.abc], LT],
+    #[#[HARNESS.abc, HARNESS.skibidi], LT],
+    #[#[HARNESS.a, HARNESS.skibidi], LT],
+    #[#[any, HARNESS.skibidi], GT],
+    #[#[HARNESS.skibidi, any], GT],
+    #[#[none, HARNESS.skibidi], LT],
+    #[#[HARNESS.skibidi, none], LT],
+  ],
+)
+
+test(
+  "compare",
+  () => do {
+    assertEquals(HARNESS.a < HARNESS.abcd, true)
+    assertEquals(HARNESS.a < HARNESS.skibidi, true)
+    assertEquals(any > HARNESS.skibidi, true)
+    assertEquals(HARNESS.skibidi < any, true)
+    return assertEquals(HARNESS.abcd < HARNESS.a, true)
+  },
 )

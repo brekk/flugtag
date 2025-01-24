@@ -2,16 +2,20 @@ import type { Comparison } from "Compare"
 import type { Maybe } from "Maybe"
 
 import { EQ, GT, LT } from "Compare"
+import Float from "Float"
 import IO from "IO"
 import List from "List"
+import Math from "Math"
 import { Just, Nothing, fromMaybe } from "Maybe"
 import { join, toLower } from "String"
+
+import { distanceWithConfig } from "CopyEdit"
 
 
 
 /*
 
-  Tags are non-empty caseless string lists: Tag(["shop", "bakery", "Tartine"])
+  Tags are non-empty caseless* string lists: Tag(["shop", "bakery", "Tartine"])
   
   Each index is a Scope
 
@@ -35,17 +39,18 @@ import { join, toLower } from "String"
 
   A tag's scopes are considered left associative and should loosely allow for "is a" expansion from right to left, that is, for `a` above, "Tartine is a bakery is a shop" is true
 
+  *A tag can have cased text but the case of the text is not used in any automatic sorting or comparison.
+
 */
 
 lower = map(toLower)
 
-export type Tag = Tag(List String) | UnTag(List String) | AnyTag | NoTag
+export type Tag = Tag(List String) | AnyTag | NoTag
 instance Comparable Tag {
   compare = compareTag
 }
 
 export create = Tag
-export negate = UnTag
 export any = AnyTag
 export none = NoTag
 
@@ -53,17 +58,8 @@ export none = NoTag
 
 compareTag :: Tag -> Tag -> Comparison
 export compareTag = (a, b) => where(#[a, b]) {
-  #[Tag(x), Tag(y)] =>
-    EQ
-
-  #[UnTag(x), UnTag(y)] =>
-    EQ
-
-  #[UnTag(x), Tag(y)] =>
-    EQ
-
-  #[Tag(x), UnTag(y)] =>
-    EQ
+  #[Tag(_), Tag(_)] =>
+    affinity(a, b) > 0.5 ? EQ : LT
 
   #[AnyTag, _] =>
     GT
@@ -88,13 +84,19 @@ export isAny = where {
     false
 }
 
+isNone :: Tag -> Boolean
+export isNone = where {
+  NoTag =>
+    true
+
+  _ =>
+    false
+}
+
 // FIELDS
 
 scopes :: Tag -> Maybe (List String)
 export scopes = where {
-  UnTag(x) =>
-    Just(x)
-
   Tag(x) =>
     Just(x)
 
@@ -103,18 +105,19 @@ export scopes = where {
 }
 
 render :: Tag -> String
-export render = pipe(
-  scopes,
-  fromMaybe([]),
-  join(":"),
-)
+export render = (x) => isAny(x)
+  ? "*"
+  : isNone(x)
+    ? "/"
+    : pipe(
+      scopes,
+      fromMaybe([]),
+      join(":"),
+    )(x)
 
 length :: Tag -> Integer
 export length = where {
   Tag(x) =>
-    List.length(x)
-
-  UnTag(x) =>
     List.length(x)
 
   NoTag =>
@@ -153,12 +156,12 @@ export isBand = where {
 isRootSibling :: Tag -> Tag -> Boolean
 export isRootSibling = (a, b) => root(a) == root(b)
 
-isSibling :: Tag -> Tag -> Boolean
-export isSibling = (_a, _b) => where(#[_a, _b]) {
+isRelative :: Tag -> Tag -> Boolean
+export isRelative = (_a, _b) => where(#[_a, _b]) {
   #[Tag(a), Tag(b)] =>
     pipe(
       List.zip(a),
-      List.all(where { #[k, v] => k == v }),
+      List.any(where { #[k, v] => k == v }),
     )(b)
 
   #[AnyTag, _] =>
@@ -188,4 +191,16 @@ export overlap = (a, b) => where(#[a, b]) {
 
   _ =>
     []
+}
+
+affinity :: Tag -> Tag -> Float
+export affinity = (_a, _b) => {
+  dA = length(_a)
+  dB = length(_b)
+  d = dA > dB ? dA : dB
+  n = pipe(
+    overlap(_a),
+    List.length,
+  )(_b)
+  return n / d
 }
