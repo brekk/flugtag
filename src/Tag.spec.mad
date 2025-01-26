@@ -1,0 +1,108 @@
+import { EQ, GT, LT } from "Compare"
+import { Just, Nothing } from "Maybe"
+import { assertEquals, test } from "Test"
+
+import { caseN2, report } from "Study"
+
+import {
+  affinity,
+  compareTag,
+  create,
+  focus,
+  isBand,
+  isRelative,
+  isRootSibling,
+  length,
+  many,
+  overlap,
+  render,
+  root,
+  scopeAt,
+  scopes,
+} from "@/Tag"
+
+
+
+HARNESS = {
+  a: create(["a"]),
+  abc: create(["a", "b", "c"]),
+  abcd: create(["a", "b", "c", "d"]),
+  skibidi: create(["skibidi"]),
+  cdef: create(["c", "d", "e", "f"]),
+}
+
+
+report(create, "create", [#[["skibidi"], HARNESS.skibidi]])
+report(
+  caseN2(isRelative),
+  "isRelative",
+  [#[#[HARNESS.abc, HARNESS.abcd], true], #[#[HARNESS.abc, HARNESS.a], true]],
+)
+
+report(
+  caseN2(isRootSibling),
+  "isRootSibling",
+  [#[#[HARNESS.abc, HARNESS.abcd], true], #[#[HARNESS.abc, HARNESS.a], true]],
+)
+
+report(length, "length", [#[HARNESS.abcd, 4], #[HARNESS.a, 1]])
+
+report(isBand, "isBand", [#[HARNESS.a, true], #[HARNESS.abcd, false]])
+
+report(scopeAt(2), "scopeAt", [#[HARNESS.abcd, Just("c")]])
+
+report(scopes, "scopes", [#[HARNESS.abcd, ["a", "b", "c", "d"]], #[HARNESS.abc, ["a", "b", "c"]]])
+
+report(render, "render", [#[HARNESS.abcd, "a:b:c:d"], #[HARNESS.a, "a"]])
+
+report(root, "root", [#[HARNESS.abcd, Just("a")], #[HARNESS.a, Just("a")]])
+
+report(focus, "focus", [#[HARNESS.abcd, Just("d")], #[HARNESS.a, Just("a")]])
+
+report(
+  caseN2(overlap),
+  "overlap",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], ["a"]],
+    #[#[HARNESS.abcd, HARNESS.abc], ["a", "b", "c"]],
+    #[#[HARNESS.a, HARNESS.skibidi], []],
+  ],
+)
+
+report(
+  caseN2(affinity),
+  "affinity - let's test some stuff and see what makes sense",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], 0.25],
+    #[#[HARNESS.a, HARNESS.abcd], 0.25],
+    #[#[HARNESS.skibidi, HARNESS.abcd], 0],
+    #[#[HARNESS.skibidi, HARNESS.skibidi], 1],
+    #[#[HARNESS.cdef, HARNESS.abcd], 0.5],
+  ],
+)
+
+report(
+  caseN2(compareTag),
+  "compareTag",
+  [
+    #[#[HARNESS.abcd, HARNESS.a], LT],
+    #[#[HARNESS.a, HARNESS.abcd], LT],
+    #[#[HARNESS.abcd, HARNESS.abcd], GT],
+    #[#[HARNESS.abc, HARNESS.abcd], GT],
+    #[#[HARNESS.abcd, HARNESS.abc], GT],
+    #[#[HARNESS.skibidi, HARNESS.abc], EQ],
+    #[#[HARNESS.abc, HARNESS.skibidi], EQ],
+    #[#[HARNESS.a, HARNESS.skibidi], EQ],
+  ],
+)
+
+test(
+  "compare",
+  () => do {
+    assertEquals(HARNESS.a < HARNESS.abcd, true)
+    assertEquals(HARNESS.a < HARNESS.skibidi, true)
+    return assertEquals(HARNESS.abcd < HARNESS.a, true)
+  },
+)
+
+report(many, "many", [#[[], []]])

@@ -1,0 +1,48 @@
+import type { Tag } from "@/Tag"
+
+import { Tag } from "@/Tag"
+
+
+
+export type MatchKind = Match | Invert | All | Any | None
+export type Tagged a = Tagged(MatchKind, List Tag, a)
+
+// CONSTRUCTORS
+
+export tagged = pipe(
+  map(Tag),
+  Tagged(Match),
+)
+export untagged = pipe(
+  map(Tag),
+  Tagged(Invert),
+)
+// no actual tags needed
+export all = Tagged(All, [])
+export any = Tagged(Any, [])
+export none = Tagged(None, [])
+
+// FIELDS
+
+kind :: Tagged a -> MatchKind
+export kind = where {
+  Tagged(k, _, _) =>
+    k
+}
+
+tags :: Tagged a -> List Tag
+export tags = where {
+  Tagged(_, t, _) =>
+    t
+}
+
+subject :: Tagged a -> a
+export subject = where {
+  Tagged(_, _, s) =>
+    s
+}
+
+// DERIVATIONS
+
+fuzzy :: String -> List (Tagged a) -> List (Tagged a)
+export fuzzy = (search, list) => list
