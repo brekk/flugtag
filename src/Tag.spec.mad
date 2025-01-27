@@ -1,18 +1,26 @@
 import { EQ, GT, LT } from "Compare"
+import Dict from "Dictionary"
 import { Just, Nothing } from "Maybe"
+import Set from "Set"
 import { assertEquals, test } from "Test"
 
+import { DEFAULT_CONFIG } from "CopyEdit"
 import { caseN2, report } from "Study"
 
 import {
+  Tag,
+  _flatLookupTableWithConfig,
   affinity,
   compareTag,
   create,
   focus,
+  fuzzy,
+  // fuzzy,
   isBand,
   isRelative,
   isRootSibling,
   length,
+  lookupTable,
   many,
   overlap,
   render,
@@ -30,6 +38,19 @@ HARNESS = {
   skibidi: create(["skibidi"]),
   cdef: create(["c", "d", "e", "f"]),
 }
+
+TARTINE = [
+  ["location", "city", "San Francisco"],
+  ["location", "neighborhood", "The Mission"],
+  ["shop", "bakery", "Tartine"],
+  ["shop", "food", "on-site"],
+  ["baked", "pastry", "croissant"],
+  ["baked", "pastry", "morning bun"],
+  ["baked", "bread", "sourdough"],
+  ["pastry"],
+  ["bread"],
+  ["near", "Dolores Park"],
+]
 
 
 report(create, "create", [#[["skibidi"], HARNESS.skibidi]])
@@ -85,24 +106,201 @@ report(
   caseN2(compareTag),
   "compareTag",
   [
-    #[#[HARNESS.abcd, HARNESS.a], LT],
+    #[#[HARNESS.abcd, HARNESS.a], GT],
     #[#[HARNESS.a, HARNESS.abcd], LT],
-    #[#[HARNESS.abcd, HARNESS.abcd], GT],
-    #[#[HARNESS.abc, HARNESS.abcd], GT],
+    #[#[HARNESS.abcd, HARNESS.abcd], EQ],
+    #[#[HARNESS.abc, HARNESS.abcd], LT],
     #[#[HARNESS.abcd, HARNESS.abc], GT],
-    #[#[HARNESS.skibidi, HARNESS.abc], EQ],
-    #[#[HARNESS.abc, HARNESS.skibidi], EQ],
-    #[#[HARNESS.a, HARNESS.skibidi], EQ],
+    #[#[HARNESS.skibidi, HARNESS.abc], LT],
+    #[#[HARNESS.abc, HARNESS.skibidi], LT],
+    #[#[HARNESS.a, HARNESS.skibidi], LT],
   ],
 )
 
 test(
   "compare",
   () => do {
-    assertEquals(HARNESS.a < HARNESS.abcd, true)
     assertEquals(HARNESS.a < HARNESS.skibidi, true)
-    return assertEquals(HARNESS.abcd < HARNESS.a, true)
+    return assertEquals(HARNESS.abcd < HARNESS.a, false)
   },
 )
 
-report(many, "many", [#[[], []]])
+report(
+  many,
+  "many",
+  [
+    #[[], []],
+    #[
+      TARTINE,
+      [
+        Tag(["location", "city", "San Francisco"]),
+        Tag(["location", "neighborhood", "The Mission"]),
+        Tag(["shop", "bakery", "Tartine"]),
+        Tag(["shop", "food", "on-site"]),
+        Tag(["baked", "pastry", "croissant"]),
+        Tag(["baked", "pastry", "morning bun"]),
+        Tag(["baked", "bread", "sourdough"]),
+        Tag(["pastry"]),
+        Tag(["bread"]),
+        Tag(["near", "Dolores Park"]),
+      ],
+    ],
+  ],
+)
+
+// report(lookupTable("francisco"), "lookupTable", [#[many(TARTINE), Dict.empty]])
+
+report(
+  _flatLookupTableWithConfig(DEFAULT_CONFIG, "francisco"),
+  "_flatLookupTable",
+  [
+    #[
+      many(TARTINE),
+      [
+        #[Tag(["location", "city", "San Francisco"]), #[5_b, ["San Francisco"]]],
+        #[Tag(["location", "city", "San Francisco"]), #[7_b, ["city"]]],
+        #[Tag(["location", "city", "San Francisco"]), #[8_b, ["location"]]],
+        #[Tag(["location", "neighborhood", "The Mission"]), #[8_b, ["location", "The Mission"]]],
+        #[Tag(["location", "neighborhood", "The Mission"]), #[11_b, ["neighborhood"]]],
+        #[Tag(["shop", "bakery", "Tartine"]), #[7_b, ["Tartine"]]],
+        #[Tag(["shop", "bakery", "Tartine"]), #[8_b, ["shop", "bakery"]]],
+        #[Tag(["shop", "food", "on-site"]), #[7_b, ["on-site"]]],
+        #[Tag(["shop", "food", "on-site"]), #[8_b, ["shop", "food"]]],
+        #[Tag(["baked", "pastry", "croissant"]), #[8_b, ["baked", "pastry", "croissant"]]],
+        #[Tag(["baked", "pastry", "morning bun"]), #[8_b, ["baked", "pastry"]]],
+        #[Tag(["baked", "pastry", "morning bun"]), #[9_b, ["morning bun"]]],
+        #[Tag(["baked", "bread", "sourdough"]), #[8_b, ["baked", "bread"]]],
+        #[Tag(["baked", "bread", "sourdough"]), #[9_b, ["sourdough"]]],
+        #[Tag(["pastry"]), #[8_b, ["pastry"]]],
+        #[Tag(["bread"]), #[8_b, ["bread"]]],
+        #[Tag(["near", "Dolores Park"]), #[8_b, ["near"]]],
+        #[Tag(["near", "Dolores Park"]), #[11_b, ["Dolores Park"]]],
+      ],
+    ],
+  ],
+)
+
+report(
+  lookupTable("francisco"),
+  "lookupTable",
+  [
+    #[
+      many(TARTINE),
+      {{
+        5_b: [#[Tag(["location", "city", "San Francisco"]), "San Francisco"]],
+        7_b: [
+          #[Tag(["shop", "food", "on-site"]), "on-site"],
+          #[Tag(["shop", "bakery", "Tartine"]), "Tartine"],
+          #[Tag(["location", "city", "San Francisco"]), "city"],
+        ],
+        8_b: [
+          #[Tag(["near", "Dolores Park"]), "near"],
+          #[Tag(["bread"]), "bread"],
+          #[Tag(["pastry"]), "pastry"],
+          #[Tag(["baked", "bread", "sourdough"]), "bread"],
+          #[Tag(["baked", "pastry", "morning bun"]), "pastry"],
+          #[Tag(["baked", "pastry", "croissant"]), "croissant"],
+          #[Tag(["shop", "food", "on-site"]), "food"],
+          #[Tag(["shop", "bakery", "Tartine"]), "bakery"],
+          #[Tag(["location", "neighborhood", "The Mission"]), "The Mission"],
+          #[Tag(["location", "city", "San Francisco"]), "location"],
+        ],
+        9_b: [
+          #[Tag(["baked", "bread", "sourdough"]), "sourdough"],
+          #[Tag(["baked", "pastry", "morning bun"]), "morning bun"],
+        ],
+        11_b: [
+          #[Tag(["near", "Dolores Park"]), "Dolores Park"],
+          #[Tag(["location", "neighborhood", "The Mission"]), "neighborhood"],
+        ],
+      }},
+    ],
+  ],
+)
+
+report(
+  lookupTable("pastry"),
+  "lookupTable(pastry)",
+  [
+    #[
+      many(TARTINE),
+      {{
+        0_b: [
+          #[Tag(["pastry"]), "pastry"],
+          #[Tag(["baked", "pastry", "morning bun"]), "pastry"],
+          #[Tag(["baked", "pastry", "croissant"]), "pastry"],
+        ],
+        3_b: [#[Tag(["shop", "bakery", "Tartine"]), "bakery"]],
+        4_b: [#[Tag(["location", "city", "San Francisco"]), "city"]],
+        5_b: [
+          #[Tag(["near", "Dolores Park"]), "near"],
+          #[Tag(["baked", "bread", "sourdough"]), "baked"],
+          #[Tag(["baked", "pastry", "morning bun"]), "baked"],
+          #[Tag(["baked", "pastry", "croissant"]), "baked"],
+          #[Tag(["shop", "food", "on-site"]), "shop"],
+          #[Tag(["shop", "bakery", "Tartine"]), "Tartine"],
+        ],
+        6_b: [
+          #[Tag(["bread"]), "bread"],
+          #[Tag(["baked", "bread", "sourdough"]), "bread"],
+          #[Tag(["shop", "food", "on-site"]), "on-site"],
+        ],
+        7_b: [
+          #[Tag(["location", "neighborhood", "The Mission"]), "location"],
+          #[Tag(["location", "city", "San Francisco"]), "location"],
+        ],
+        8_b: [#[Tag(["baked", "pastry", "croissant"]), "croissant"]],
+        9_b: [#[Tag(["baked", "bread", "sourdough"]), "sourdough"]],
+        10_b: [
+          #[Tag(["near", "Dolores Park"]), "Dolores Park"],
+          #[Tag(["location", "neighborhood", "The Mission"]), "The Mission"],
+        ],
+        11_b: [
+          #[Tag(["baked", "pastry", "morning bun"]), "morning bun"],
+          #[Tag(["location", "neighborhood", "The Mission"]), "neighborhood"],
+          #[Tag(["location", "city", "San Francisco"]), "San Francisco"],
+        ],
+      }},
+    ],
+  ],
+)
+
+
+report(
+  caseN2(fuzzy),
+  "fuzzy",
+  [
+    #[
+      #["pastry", many(TARTINE)],
+      [
+        Tag(["pastry"]),
+        Tag(["baked", "pastry", "croissant"]),
+        Tag(["baked", "pastry", "morning bun"]),
+        Tag(["shop", "bakery", "Tartine"]),
+        Tag(["location", "city", "San Francisco"]),
+        Tag(["near", "Dolores Park"]),
+        Tag(["baked", "bread", "sourdough"]),
+        Tag(["shop", "food", "on-site"]),
+        Tag(["bread"]),
+        Tag(["location", "neighborhood", "The Mission"]),
+      ],
+    ],
+    #[
+      #["baker", many(TARTINE)],
+      [
+        Tag(["baked", "pastry", "croissant"]),
+        Tag(["baked", "pastry", "morning bun"]),
+        Tag(["baked", "bread", "sourdough"]),
+        Tag(["shop", "bakery", "Tartine"]),
+        Tag(["near", "Dolores Park"]),
+        Tag(["bread"]),
+        Tag(["pastry"]),
+        Tag(["shop", "food", "on-site"]),
+        Tag(["location", "neighborhood", "The Mission"]),
+        Tag(["location", "city", "San Francisco"]),
+      ],
+    ],
+  ],
+)
+
+// report(fuzzy("francisco"), "fuzzy", [#[many(TARTINE), Just([])]])

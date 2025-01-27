@@ -4,12 +4,15 @@ import type { Maybe } from "Maybe"
 import type { DistanceConfig } from "CopyEdit"
 
 import { EQ, GT, LT } from "Compare"
+import Dict from "Dictionary"
 import Float from "Float"
-import { equals } from "Function"
 import List from "List"
+import { Just, Nothing, fromMaybe } from "Maybe"
+import Set from "Set"
 import { join, toLower } from "String"
+import Tuple from "Tuple"
 
-import { DEFAULT_CONFIG, distanceWithConfig } from "CopyEdit"
+import { DEFAULT_CONFIG, distanceDict, nearestAllWithConfig, nearestWithConfig } from "CopyEdit"
 
 
 
@@ -64,7 +67,15 @@ export compareTag = (a, b) => where(#[a, b]) {
   #[Tag(_), Tag(_)] =>
     do {
       aff = affinity(a, b)
-      return aff == 0 ? EQ : aff < 0.5 ? LT : GT
+      return if (aff == 1) {
+        EQ
+      } else if (aff == 0) {
+        LT
+      } else do {
+        lenA = length(a)
+        lenB = length(b)
+        return lenA < lenB ? LT : GT
+      }
     }
 }
 
@@ -112,7 +123,7 @@ isBand :: Tag -> Boolean
 export isBand = pipe(
   scopes,
   List.length,
-  equals(1),
+  (x) => x == 1,
 )
 
 isRootSibling :: Tag -> Tag -> Boolean
@@ -149,9 +160,82 @@ export affinity = (_a, _b) => {
   return n / d
 }
 
-/*
-fuzzyWithConfig :: DistanceConfig -> String -> List Tag -> List Tag
-fuzzyWithConfig = (conf, str, tags) => pipe(
 
+equals :: Tag -> Tag -> Boolean
+export equals = (_a, _b) => where(#[_a, _b]) {
+  #[Tag(a), Tag(b)] =>
+    a == b
+}
+
+
+
+_flatLookupTableWithConfig :: DistanceConfig
+  -> String
+  -> List Tag
+  -> List #[Tag, #[Byte, List String]]
+export _flatLookupTableWithConfig = (conf, str, tags) => pipe(
+  chain(
+    (t) => pipe(
+      scopes,
+      distanceDict(conf, str),
+      Dict.toList,
+      map(where { #[dist, stack] => #[t, #[dist, stack]] }),
+    )(t),
+  ),
 )(tags)
-*/
+
+lookupTableWithConfig :: DistanceConfig
+  -> String
+  -> List Tag
+  -> Dictionary Byte (List #[Tag, String])
+export lookupTableWithConfig = (conf, str, tags) => pipe(
+  _flatLookupTableWithConfig(conf, str),
+  List.reduce(
+    (agg, step) => where(step) {
+      #[tag, #[dist, stack]] =>
+        Dict.includes(dist, agg)
+          ? Dict.update(
+            List.concat([
+              #[
+                tag,
+                pipe(
+                  List.last,
+                  fromMaybe(""),
+                )(stack),
+              ],
+            ]),
+            dist,
+            agg,
+          )
+          : Dict.insert(
+            dist,
+            [
+              #[
+                tag,
+                pipe(
+                  List.last,
+                  fromMaybe(""),
+                )(stack),
+              ],
+            ],
+            agg,
+          )
+    },
+    Dict.empty,
+  ),
+)(tags)
+
+export lookupTable = lookupTableWithConfig(DEFAULT_CONFIG)
+
+
+fuzzyWithConfig :: DistanceConfig -> String -> List Tag -> List Tag
+export fuzzyWithConfig = (conf, str, tags) => pipe(
+  lookupTableWithConfig(conf, str),
+  Dict.values,
+  List.reduce(List.concat, []),
+  map(Tuple.fst),
+  List.uniqueBy(equals),
+  List.sortBy(compareTag),
+)(tags)
+
+export fuzzy = fuzzyWithConfig(DEFAULT_CONFIG)

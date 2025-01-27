@@ -22,39 +22,35 @@ import {
 
 
 
-RAW_TAGS = [
-  ["city", "San Francisco"],
-  ["shop", "bakery", "Tartine"],
-  ["pastry", "croissant"],
-  ["pastry", "morning bun"],
-  ["bread"],
-  ["pastry"],
-]
-
-TARTINE_TAGS = [
-  Tag.create(["city", "San Francisco"]),
-  Tag.create(["shop", "bakery", "Tartine"]),
-  Tag.create(["pastry", "croissant"]),
-  Tag.create(["pastry", "morning bun"]),
-  Tag.create(["bread"]),
-  Tag.create(["pastry"]),
-]
-
 HARNESS = {
-  tartine: tagged(
-    RAW_TAGS,
-    {
-      name: "Tartine",
-      location: "San Francisco",
-      description: "Fantastic croissants and morning buns",
-    },
-  ),
+  STRINGS: [
+    ["city", "San Francisco"],
+    ["shop", "bakery", "Tartine"],
+    ["pastry", "croissant"],
+    ["pastry", "morning bun"],
+    ["bread"],
+    ["pastry"],
+  ],
+  TAGS: [
+    Tag.create(["city", "San Francisco"]),
+    Tag.create(["shop", "bakery", "Tartine"]),
+    Tag.create(["pastry", "croissant"]),
+    Tag.create(["pastry", "morning bun"]),
+    Tag.create(["bread"]),
+    Tag.create(["pastry"]),
+  ],
+  ENTITY: {
+    name: "Tartine",
+    location: "San Francisco",
+    description: "Fantastic croissants and morning buns",
+  },
 }
+ASSEMBLED = tagged(HARNESS.STRINGS, HARNESS.ENTITY)
 
 tagMaker = (k, fn, name) => report(
-  fn(RAW_TAGS),
+  fn(HARNESS.STRINGS),
   name,
-  [#[{ yo: "yes" }, Tagged(k, TARTINE_TAGS, { yo: "yes" })]],
+  [#[{ yo: "yes" }, Tagged(k, HARNESS.TAGS, { yo: "yes" })]],
 )
 
 tagMaker(Match, tagged, "tagged constructor")
@@ -65,19 +61,6 @@ report(all, "all", [#[{ blah: "yes" }, Tagged(All, [], { blah: "yes" })]])
 report(any, "any", [#[{ blah: "yes" }, Tagged(Any, [], { blah: "yes" })]])
 report(none, "none", [#[{ blah: "yes" }, Tagged(None, [], { blah: "yes" })]])
 
-report(kind, "kind", [#[HARNESS.tartine, Match]])
-report(tags, "tags", [#[HARNESS.tartine, TARTINE_TAGS]])
-report(
-  subject,
-  "subject",
-  [
-    #[
-      HARNESS.tartine,
-      {
-        name: "Tartine",
-        location: "San Francisco",
-        description: "Fantastic croissants and morning buns",
-      },
-    ],
-  ],
-)
+report(kind, "kind", [#[ASSEMBLED, Match]])
+report(tags, "tags", [#[ASSEMBLED, HARNESS.TAGS]])
+report(subject, "subject", [#[ASSEMBLED, HARNESS.ENTITY]])
