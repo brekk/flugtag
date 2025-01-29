@@ -87,35 +87,26 @@ export scopes = where {
     x
 }
 
-render :: Tag -> String
-export render = pipe(
+_enscope :: (List String -> a) -> Tag -> a
+export _enscope = (fn, x) => pipe(
   scopes,
-  join(":"),
-)
+  fn,
+)(x)
+
+render :: Tag -> String
+export render = _enscope(join(":"))
 
 length :: Tag -> Integer
-export length = pipe(
-  scopes,
-  List.length,
-)
+export length = _enscope(List.length)
 
 root :: Tag -> Maybe String
-export root = pipe(
-  scopes,
-  List.first,
-)
+export root = _enscope(List.first)
 
 focus :: Tag -> Maybe String
-export focus = pipe(
-  scopes,
-  List.last,
-)
+export focus = _enscope(List.last)
 
 scopeAt :: Integer -> Tag -> Maybe String
-export scopeAt = (i, t) => pipe(
-  scopes,
-  List.nth(i),
-)(t)
+export scopeAt = (i, t) => _enscope(List.nth(i))(t)
 
 // DERIVATIONS
 
@@ -162,12 +153,7 @@ export affinity = (_a, _b) => {
 
 
 equals :: Tag -> Tag -> Boolean
-export equals = (_a, _b) => where(#[_a, _b]) {
-  #[Tag(a), Tag(b)] =>
-    a == b
-}
-
-
+export equals = (_a, _b) => affinity(_a, _b) == 1
 
 _flatLookupTableWithConfig :: DistanceConfig
   -> String
@@ -184,58 +170,47 @@ export _flatLookupTableWithConfig = (conf, str, tags) => pipe(
   ),
 )(tags)
 
-lookupTableWithConfig :: DistanceConfig
+_lastString = pipe(
+  List.last,
+  fromMaybe(""),
+)
+
+lookupTableWithConfigAndBase :: Dictionary Byte (List #[Tag, String])
+  -> DistanceConfig
   -> String
   -> List Tag
   -> Dictionary Byte (List #[Tag, String])
-export lookupTableWithConfig = (conf, str, tags) => pipe(
+export lookupTableWithConfigAndBase = (base, conf, str, tags) => pipe(
   _flatLookupTableWithConfig(conf, str),
   List.reduce(
     (agg, step) => where(step) {
       #[tag, #[dist, stack]] =>
-        Dict.includes(dist, agg)
-          ? Dict.update(
-            List.concat([
-              #[
-                tag,
-                pipe(
-                  List.last,
-                  fromMaybe(""),
-                )(stack),
-              ],
-            ]),
-            dist,
-            agg,
-          )
-          : Dict.insert(
-            dist,
-            [
-              #[
-                tag,
-                pipe(
-                  List.last,
-                  fromMaybe(""),
-                )(stack),
-              ],
-            ],
-            agg,
-          )
+        do {
+          toAdd = [#[tag, _lastString(stack)]]
+          return Dict.includes(dist, agg)
+            ? Dict.update(List.concat(toAdd), dist, agg)
+            : Dict.insert(dist, toAdd, agg)
+        }
     },
-    Dict.empty,
+    base,
   ),
 )(tags)
-
+export lookupTableWithConfig = lookupTableWithConfigAndBase(Dict.empty)
 export lookupTable = lookupTableWithConfig(DEFAULT_CONFIG)
 
+fuzzyLookup :: Dictionary a (List #[Tag, b]) -> List Tag
+export fuzzyLookup = pipe(
+  Dict.values,
+  List.flatten,
+  map(Tuple.fst),
+  List.uniqueBy(equals),
+  List.sortBy(compareTag),
+)
 
 fuzzyWithConfig :: DistanceConfig -> String -> List Tag -> List Tag
 export fuzzyWithConfig = (conf, str, tags) => pipe(
   lookupTableWithConfig(conf, str),
-  Dict.values,
-  List.reduce(List.concat, []),
-  map(Tuple.fst),
-  List.uniqueBy(equals),
-  List.sortBy(compareTag),
+  fuzzyLookup,
 )(tags)
 
 export fuzzy = fuzzyWithConfig(DEFAULT_CONFIG)

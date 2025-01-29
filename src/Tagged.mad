@@ -1,4 +1,8 @@
+import type { Comparison } from "Compare"
+
 import type { Tag } from "@/Tag"
+
+import { EQ, GT, LT } from "Compare"
 
 import { Tag } from "@/Tag"
 
@@ -6,6 +10,12 @@ import { Tag } from "@/Tag"
 
 export type MatchKind = Match | Invert | All | Any | None
 export type Tagged a = Tagged(MatchKind, List Tag, a)
+
+instance Comparable (Tagged a) {
+  compare = compareTagged
+}
+
+
 
 // CONSTRUCTORS
 
@@ -42,6 +52,19 @@ export subject = where {
     s
 }
 
+compareTagged = (_a, _b) => {
+  kA = kind(_a)
+  kB = kind(_b)
+  tA = tags(_a)
+  tB = tags(_b)
+  sA = subject(_a)
+  sB = subject(_b)
+  return if (kA == kB && kA == Match) {
+    EQ
+  } else {
+    EQ
+  }
+}
 // DERIVATIONS
 
 fuzzy :: String -> List (Tagged a) -> List (Tagged a)
