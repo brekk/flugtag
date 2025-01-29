@@ -51,19 +51,27 @@ export subject = where {
   Tagged(_, _, s) =>
     s
 }
+compareTagged = (_a, _b) => where(#[_a, _b]) {
+  #[Tagged(Match, tA, sA), Tagged(Match, tB, sB)] =>
+    EQ
 
-compareTagged = (_a, _b) => {
-  kA = kind(_a)
-  kB = kind(_b)
-  tA = tags(_a)
-  tB = tags(_b)
-  sA = subject(_a)
-  sB = subject(_b)
-  return if (kA == kB && kA == Match) {
+  #[Tagged(Invert, tA, sA), Tagged(Match, tB, sB)] =>
     EQ
-  } else {
+
+  #[Tagged(Match, tA, sA), Tagged(Invert, tB, sB)] =>
+    LT
+
+  #[Tagged(All, tA, sA), Tagged(Match, tB, sB)] =>
     EQ
-  }
+
+  #[Tagged(None, tA, sA), Tagged(Match, tB, sB)] =>
+    EQ
+
+  #[Tagged(Any, tA, sA), Tagged(Match, tB, sB)] =>
+    EQ
+
+  _ =>
+    LT
 }
 // DERIVATIONS
 
