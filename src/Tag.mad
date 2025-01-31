@@ -16,36 +16,6 @@ import { DEFAULT_CONFIG, distanceDict, nearestAllWithConfig, nearestWithConfig }
 
 
 
-/*
-
-  Tags are non-empty caseless* string lists: Tag(["shop", "bakery", "Tartine"])
-  
-  Each index is a Scope
-
-  The first Scope is the Root Scope
-  The last Scope is the Focus Scope
-
-  A Band is a Tag whose Root and Focus are the same value (that is, a single value Tag is a Band)
-
-  Other tags are considered siblings if the given tags share a Root Scope
-
-  The overlap between Tags denotes their affinity
-
-  a. Tag(["shop", "bakery", "Tartine"])
-  b. Tag(["shop", "exotic", "Paxton Gate"])
-
-  These two tags have the same Band, "shop", and it's in the same place, so they have a stronger affinity than
-
-  c: Tag(["airport", "shop", "Peetz", "Drip Coffee"])
-
-  since `a` and `b` have the same Root and length, they have the same affinity to `c`
-
-  A tag's scopes are considered left associative and should loosely allow for "is a" expansion from right to left, that is, for `a` above, "Tartine is a bakery is a shop" is true
-
-  *A tag can have cased text but the case of the text is not used in any automatic sorting or comparison.
-
-*/
-
 lower = map(toLower)
 
 export type Tag = Tag(List String)
@@ -214,3 +184,22 @@ export fuzzyWithConfig = (conf, str, tags) => pipe(
 )(tags)
 
 export fuzzy = fuzzyWithConfig(DEFAULT_CONFIG)
+
+relate :: List Tag -> Tag -> List Float
+export relate = (ts, t) => List.reduce((agg, u) => List.append(affinity(t, u), agg), [], ts)
+
+relateTags :: List Tag -> Tag -> List Tag
+export relateTags = (ts, t) => pipe(
+  relate(ts),
+  List.zip($, ts),
+  List.filter(
+    pipe(
+      Tuple.fst,
+      (z) => z > 0,
+    ),
+  ),
+  map(Tuple.snd),
+)(t)
+
+relateManyTags :: List Tag -> List Tag -> List (List Tag)
+export relateManyTags = (xs, ys) => map(relateTags(xs), ys)

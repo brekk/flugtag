@@ -23,6 +23,9 @@ import {
   lookupTable,
   many,
   overlap,
+  relate,
+  relateManyTags,
+  relateTags,
   render,
   root,
   scopeAt,
@@ -304,3 +307,45 @@ report(
 )
 
 // report(fuzzy("francisco"), "fuzzy", [#[many(TARTINE), Just([])]])
+
+report(
+  relate(many(TARTINE)),
+  "relate",
+  [#[Tag(["shop", "bakery"]), [0, 0, 2 / 3, 1 / 3, 0, 0, 0, 0, 0, 0]]],
+)
+
+report(
+  relateTags(many(TARTINE)),
+  "relateTags",
+  [
+    #[
+      Tag(["shop", "bakery"]),
+      [Tag(["shop", "bakery", "Tartine"]), Tag(["shop", "food", "on-site"])],
+    ],
+  ],
+)
+
+report(
+  relateManyTags(many(TARTINE)),
+  "relateManyTags",
+  [
+    #[[], []],
+    #[
+      [
+        Tag(["shop", "bakery"]),
+        Tag(["location", "city", "Los Angeles"]),
+        Tag(["neighborhood"]),
+        Tag(["bread"]),
+      ],
+      [
+        [Tag(["shop", "bakery", "Tartine"]), Tag(["shop", "food", "on-site"])],
+        [
+          Tag(["location", "city", "San Francisco"]),
+          Tag(["location", "neighborhood", "The Mission"]),
+        ],
+        [Tag(["location", "neighborhood", "The Mission"])],
+        [Tag(["baked", "bread", "sourdough"]), Tag(["bread"])],
+      ],
+    ],
+  ],
+)

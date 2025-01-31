@@ -51,24 +51,27 @@ export subject = where {
   Tagged(_, _, s) =>
     s
 }
+
+export alias Relationship = {
+  affinity :: Float,
+  isRelative :: Boolean,
+  isRootRelative :: Boolean,
+  overlap :: List String,
+}
+
+// related :: Tagged a -> Tagged b -> ???
+// related = (a, b) => {
+//   tA = tags(a)
+//   tB = tags(b)
+//
+// }
+
 compareTagged = (_a, _b) => where(#[_a, _b]) {
   #[Tagged(Match, tA, sA), Tagged(Match, tB, sB)] =>
-    EQ
-
-  #[Tagged(Invert, tA, sA), Tagged(Match, tB, sB)] =>
-    EQ
-
-  #[Tagged(Match, tA, sA), Tagged(Invert, tB, sB)] =>
-    LT
-
-  #[Tagged(All, tA, sA), Tagged(Match, tB, sB)] =>
-    EQ
-
-  #[Tagged(None, tA, sA), Tagged(Match, tB, sB)] =>
-    EQ
-
-  #[Tagged(Any, tA, sA), Tagged(Match, tB, sB)] =>
-    EQ
+    do {
+      // we're gonna need to compare a bunch of tags to each other
+      return EQ
+    }
 
   _ =>
     LT
